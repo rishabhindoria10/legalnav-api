@@ -1,0 +1,18 @@
+# LegalNav Live API - Python Dependencies
+# For Railway deployment
+
+# Web Framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+
+# HTTP Client (for CourtListener API calls)
+httpx==0.28.1
+
+# Data Validation (included with FastAPI but pinned for stability)
+pydantic==2.10.4
+
+# ASGI Server dependencies
+gunicorn==23.0.0
+
+# Optional: Better performance for JSON
+orjson==3.10.12

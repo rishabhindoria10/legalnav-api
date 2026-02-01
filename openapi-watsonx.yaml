@@ -1,0 +1,371 @@
+openapi: 3.0.3
+info:
+  title: LegalNav Live API
+  description: |
+    Real-time legal data API for LegalNav agents in IBM watsonx Orchestrate.
+    
+    This API provides case law search via CourtListener (Free Law Project)
+    and attorney bar verification services for all 50 US states + DC.
+    
+    **Built for IBM Dev Day: AI Demystified Hackathon 2026**
+  version: 1.0.0
+  contact:
+    name: LegalNav Team
+
+servers:
+  - url: https://YOUR-RAILWAY-APP.up.railway.app
+    description: Railway Production Server (UPDATE THIS URL AFTER DEPLOYMENT)
+
+paths:
+  /api/v1/cases/search:
+    post:
+      operationId: search_case_law
+      summary: Search Case Law Database
+      description: |
+        Search the CourtListener database for relevant legal cases and precedents.
+        CourtListener contains over 8 million court opinions from federal and state courts.
+        
+        **USE THIS TOOL WHEN:**
+        - User asks about legal precedents or case law
+        - User wants to know how courts have ruled on similar issues
+        - User needs case citations for self-representation
+        - User asks questions like "what cases support my position"
+        - User asks about past court decisions
+        - User wants to research their legal issue
+        - User mentions wanting to see what judges have decided
+        
+        **EXAMPLE SEARCH QUERIES:**
+        - "tenant eviction habitability warranty" (for housing issues)
+        - "wage theft employer retaliation" (for employment issues)
+        - "custody modification best interest child" (for family law)
+        - "wrongful termination whistleblower" (for employment)
+        - "landlord security deposit withholding" (for tenant rights)
+        - "small claims breach contract" (for contract disputes)
+        
+        **WHAT IT RETURNS:**
+        - Case names and official legal citations
+        - Filing dates and court information
+        - Brief summaries/excerpts from court opinions
+        - Direct links to read full opinions on CourtListener
+        
+        **HOW TO PRESENT RESULTS TO USERS:**
+        1. Summarize the most relevant cases found
+        2. Explain how each case might relate to the user's situation
+        3. Provide the citations so they can reference them
+        4. Include links so they can read the full opinions
+        5. ALWAYS remind users this is legal information, not legal advice
+        
+        **JURISDICTION CODES:**
+        - Use lowercase state codes: "ca", "tx", "ny", "fl", etc.
+        - Use "scotus" for US Supreme Court
+        - Use "federal" for all federal circuit courts
+        - Leave empty for nationwide search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+                  description: |
+                    Search terms describing the legal issue.
+                    Use specific legal concepts and keywords for best results.
+                    Example: "tenant eviction retaliatory habitability warranty"
+                  example: "tenant eviction habitability"
+                jurisdiction:
+                  type: string
+                  description: |
+                    Court jurisdiction code to filter results.
+                    Use lowercase state codes: "ca", "tx", "ny", "fl", etc.
+                    Use "scotus" for Supreme Court, "federal" for federal circuits.
+                    Leave empty for nationwide search across all courts.
+                  example: "ca"
+                date_after:
+                  type: string
+                  pattern: '^\d{4}-\d{2}-\d{2}$'
+                  description: |
+                    Only return cases filed after this date.
+                    Format: YYYY-MM-DD (e.g., "2020-01-01")
+                    Useful for finding recent precedents.
+                  example: "2020-01-01"
+                limit:
+                  type: integer
+                  default: 5
+                  minimum: 1
+                  maximum: 20
+                  description: |
+                    Maximum number of case results to return.
+                    Default is 5. Maximum is 20.
+                    Use higher limits when user wants comprehensive research.
+            example:
+              query: "tenant eviction habitability"
+              jurisdiction: "ca"
+              date_after: "2020-01-01"
+              limit: 5
+      responses:
+        '200':
+          description: Successful case search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether the search completed successfully
+                    example: true
+                  cases:
+                    type: array
+                    description: List of matching court cases
+                    items:
+                      type: object
+                      properties:
+                        case_name:
+                          type: string
+                          description: Full name of the case (e.g., "Smith v. Jones")
+                          example: "Green v. Superior Court"
+                        citation:
+                          type: string
+                          nullable: true
+                          description: Official legal citation if available
+                          example: "10 Cal.3d 616"
+                        date_filed:
+                          type: string
+                          description: Date the case was filed or decided
+                          example: "1974-02-07"
+                        court:
+                          type: string
+                          description: Name of the court that issued the decision
+                          example: "Supreme Court of California"
+                        summary:
+                          type: string
+                          nullable: true
+                          description: Brief excerpt from the court opinion
+                        url:
+                          type: string
+                          description: Link to read the full opinion on CourtListener
+                          example: "https://www.courtlistener.com/opinion/1234567/"
+                  total_results:
+                    type: integer
+                    description: Total number of matching cases found (may exceed limit)
+                    example: 156
+                  query_used:
+                    type: string
+                    description: The search query that was executed
+                  source:
+                    type: string
+                    description: Attribution for the data source
+                    example: "CourtListener (Free Law Project)"
+                  source_url:
+                    type: string
+                    description: Link to the data source
+                    example: "https://www.courtlistener.com"
+                  retrieved_at:
+                    type: string
+                    description: ISO timestamp when the search was performed
+                  disclaimer:
+                    type: string
+                    description: Legal disclaimer to share with users
+        '400':
+          description: Invalid search parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error or CourtListener API error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '504':
+          description: Request timeout
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/attorneys/verify:
+    post:
+      operationId: verify_attorney_bar_status
+      summary: Verify Attorney Bar Status
+      description: |
+        Get the official state bar verification URL for an attorney.
+        Supports all 50 US states plus Washington DC.
+        
+        **USE THIS TOOL WHEN:**
+        - User wants to verify a specific attorney's credentials
+        - User has an attorney's bar number and wants to confirm validity
+        - User asks if an attorney is licensed or in good standing
+        - Before recommending an attorney, verify their status
+        - User asks about disciplinary history
+        - User is considering hiring an attorney and wants to check them out
+        - User mentions wanting to verify a lawyer's license
+        
+        **WHAT IT RETURNS:**
+        - Direct URL to the official state bar verification page
+        - Name of the state bar association
+        - Instructions on how to use the verification URL
+        
+        **HOW TO PRESENT RESULTS TO USERS:**
+        1. Provide the verification URL as a clickable link
+        2. Explain what information they can find there
+        3. Include the state bar name for reference
+        4. Remind them to verify directly with official sources
+        
+        **SUPPORTED STATES:**
+        All 50 US states + Washington DC (use code "DC")
+        
+        **STATE CODE FORMAT:**
+        Use uppercase two-letter codes: CA, TX, NY, FL, IL, PA, etc.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - state
+                - bar_number
+              properties:
+                state:
+                  type: string
+                  minLength: 2
+                  maxLength: 2
+                  description: |
+                    Two-letter US state code (uppercase).
+                    Examples: CA, TX, NY, FL, IL, PA, OH, GA, NC, MI
+                    Use DC for Washington DC.
+                  example: "CA"
+                bar_number:
+                  type: string
+                  minLength: 1
+                  maxLength: 20
+                  description: |
+                    The attorney's bar number as issued by the state bar.
+                    Format varies by state.
+                  example: "123456"
+            example:
+              state: "CA"
+              bar_number: "123456"
+      responses:
+        '200':
+          description: Attorney verification information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    description: Whether the lookup was successful
+                    example: true
+                  verified:
+                    type: boolean
+                    nullable: true
+                    description: |
+                      Verification status. Currently null as manual verification
+                      is required via the provided URL.
+                  status:
+                    type: string
+                    description: Status message with instructions
+                    example: "Verification URL provided - please check directly with state bar"
+                  name:
+                    type: string
+                    nullable: true
+                    description: Attorney's name if available from the lookup
+                  admission_date:
+                    type: string
+                    nullable: true
+                    description: Bar admission date if available
+                  discipline_history:
+                    type: boolean
+                    description: Whether disciplinary records exist (check URL for details)
+                    example: false
+                  verification_url:
+                    type: string
+                    description: |
+                      Direct URL to verify the attorney on the official state bar website.
+                      For California, this links directly to the attorney's profile.
+                    example: "https://apps.calbar.ca.gov/attorney/Licensee/Detail/123456"
+                  state_bar_name:
+                    type: string
+                    description: Official name of the state bar association
+                    example: "State Bar of California"
+                  instructions:
+                    type: string
+                    description: How to use the verification URL
+                    example: "Add the bar number to the end of the URL, or search at calbar.ca.gov"
+                  retrieved_at:
+                    type: string
+                    description: ISO timestamp when the lookup was performed
+        '400':
+          description: Invalid state code or bar number format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/health:
+    get:
+      operationId: check_api_health
+      summary: API Health Check
+      description: |
+        Check if the LegalNav API is running and healthy.
+        
+        **USE THIS TOOL WHEN:**
+        - You need to verify the API is working before making other calls
+        - Troubleshooting connectivity issues
+        
+        This endpoint is primarily for monitoring and does not require authentication.
+      responses:
+        '200':
+          description: API is healthy and operational
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  service:
+                    type: string
+                    example: "LegalNav Live API"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  timestamp:
+                    type: string
+                    example: "2026-01-31T12:00:00Z"
+                  courtlistener_configured:
+                    type: boolean
+                    description: Whether CourtListener API token is configured
+                    example: true
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Human-readable error message
+          example: "Invalid state code: XX"
+        error_code:
+          type: string
+          description: Machine-readable error code
+          example: "HTTP_400"
+        timestamp:
+          type: string
+          description: When the error occurred
+          example: "2026-01-31T12:00:00Z"
