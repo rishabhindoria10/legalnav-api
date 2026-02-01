@@ -13,7 +13,7 @@ info:
     name: LegalNav Team
 
 servers:
-  - url: https://YOUR-RAILWAY-APP.up.railway.app
+  - url: https://web-production-9640d.up.railway.app
     description: Railway Production Server (UPDATE THIS URL AFTER DEPLOYMENT)
 
 paths:
