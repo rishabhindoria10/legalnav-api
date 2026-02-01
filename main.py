@@ -162,12 +162,12 @@ class CaseSearchRequest(BaseModel):
         description="Search terms describing the legal issue. Use specific legal concepts.",
         examples=["tenant eviction habitability warranty", "wrongful termination whistleblower"]
     )
-    jurisdiction: Optional[str] = Field(
+    location: Optional[str] = Field(
         None,
         min_length=2,
-        max_length=10,
-        description="Court jurisdiction code (e.g., 'ca' for California, 'scotus' for Supreme Court)",
-        examples=["ca", "ny", "tex", "scotus"]
+        max_length=50,
+        description="State or location to focus the search (e.g., 'California', 'New York', 'Texas'). This will be added to the search query to find relevant cases from that location.",
+        examples=["California", "New York", "Texas", "Florida"]
     )
     date_after: Optional[str] = Field(
         None,
@@ -186,7 +186,7 @@ class CaseSearchRequest(BaseModel):
         json_schema_extra = {
             "example": {
                 "query": "tenant eviction habitability",
-                "jurisdiction": "ca",
+                "location": "California",
                 "date_after": "2020-01-01",
                 "limit": 5
             }
@@ -796,7 +796,7 @@ async def verify_california_attorney(
 
 async def search_courtlistener(
     query: str,
-    jurisdiction: Optional[str] = None,
+    location: Optional[str] = None,
     date_after: Optional[str] = None,
     limit: int = 5
 ) -> CaseSearchResponse:
@@ -808,21 +808,18 @@ async def search_courtlistener(
     
     base_url = "https://www.courtlistener.com/api/rest/v4/search/"
     
+    # Enhance query with location if provided
+    enhanced_query = query
+    if location:
+        enhanced_query = f"{query} {location}"
+    
     # Build search parameters
     params = {
-        "q": query,
+        "q": enhanced_query,
         "type": "o",  # Search opinions
         "order_by": "score desc",
         "page_size": min(limit, 20)
     }
-    
-    # Add jurisdiction filter if provided
-    if jurisdiction:
-        jurisdiction = jurisdiction.lower()
-        if jurisdiction in COURTLISTENER_JURISDICTIONS:
-            params["court"] = COURTLISTENER_JURISDICTIONS[jurisdiction]
-        else:
-            params["court"] = jurisdiction
     
     # Add date filter if provided
     if date_after:
@@ -835,7 +832,7 @@ async def search_courtlistener(
     if COURTLISTENER_API_TOKEN:
         headers["Authorization"] = f"Token {COURTLISTENER_API_TOKEN}"
     
-    logger.info(f"Searching CourtListener: query='{query}', jurisdiction='{jurisdiction}', limit={limit}")
+    logger.info(f"Searching CourtListener: query='{enhanced_query}', location='{location}', limit={limit}")
     
     async with httpx.AsyncClient(timeout=REQUEST_TIMEOUT) as client:
         try:
@@ -885,7 +882,7 @@ async def search_courtlistener(
                 success=True,
                 cases=cases,
                 total_results=data.get("count", 0),
-                query_used=query,
+                query_used=enhanced_query,
                 source="CourtListener (Free Law Project)",
                 source_url="https://www.courtlistener.com",
                 retrieved_at=get_timestamp()
@@ -993,7 +990,7 @@ async def search_cases(request: CaseSearchRequest):
     """
     return await search_courtlistener(
         query=request.query,
-        jurisdiction=request.jurisdiction,
+        location=request.location,
         date_after=request.date_after,
         limit=request.limit
     )

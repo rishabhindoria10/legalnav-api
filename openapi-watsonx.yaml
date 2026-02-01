@@ -13,8 +13,8 @@ info:
     name: LegalNav Team
 
 servers:
-  - url: https://web-production-9640d.up.railway.app
-    description: Railway Production Server (UPDATE THIS URL AFTER DEPLOYMENT)
+  - url: https://api-server.25rpttp17qga.eu-de.codeengine.appdomain.cloud
+    description: IBM Cloud
 
 paths:
   /api/v1/cases/search:
@@ -55,11 +55,10 @@ paths:
         4. Include links so they can read the full opinions
         5. ALWAYS remind users this is legal information, not legal advice
         
-        **JURISDICTION CODES:**
-        - Use lowercase state codes: "ca", "tx", "ny", "fl", etc.
-        - Use "scotus" for US Supreme Court
-        - Use "federal" for all federal circuit courts
-        - Leave empty for nationwide search
+        **LOCATION PARAMETER:**
+        - Optional: Specify a state or location to focus the search (e.g., "California", "New York", "Texas")
+        - The location is added to the search query to prioritize cases from that area
+        - Leave empty for nationwide search across all courts
       requestBody:
         required: true
         content:
@@ -78,14 +77,13 @@ paths:
                     Use specific legal concepts and keywords for best results.
                     Example: "tenant eviction retaliatory habitability warranty"
                   example: "tenant eviction habitability"
-                jurisdiction:
+                location:
                   type: string
                   description: |
-                    Court jurisdiction code to filter results.
-                    Use lowercase state codes: "ca", "tx", "ny", "fl", etc.
-                    Use "scotus" for Supreme Court, "federal" for federal circuits.
+                    State or location to focus the search (e.g., "California", "New York", "Texas").
+                    This will be added to the search query to find relevant cases from that location.
                     Leave empty for nationwide search across all courts.
-                  example: "ca"
+                  example: "California"
                 date_after:
                   type: string
                   pattern: '^\d{4}-\d{2}-\d{2}$'
@@ -105,7 +103,7 @@ paths:
                     Use higher limits when user wants comprehensive research.
             example:
               query: "tenant eviction habitability"
-              jurisdiction: "ca"
+              location: "California"
               date_after: "2020-01-01"
               limit: 5
       responses:
